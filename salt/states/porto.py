@@ -58,6 +58,15 @@ def running(name,
 
     name
         Name of the container
+
+    Usage Examples:
+
+    .. code-block:: yaml
+        mycontainer:
+            porto.runnning:
+                - hostname: hostname
+                - command: "sleep 300"
+                ...
     '''
 
     ret = {'name': name,
@@ -91,4 +100,56 @@ def running(name,
 
     ret['result'] = res
 
+    return ret
+
+
+def absent(name):
+    '''
+    Ensure that a container is absent
+
+    name
+        Name of the container
+
+    Usage Examples:
+
+    .. code-block:: yaml
+        mycontainer:
+            porto.absent
+
+        multiple_containers:
+            porto.absent:
+                - names:
+                    - foo
+                    - bar
+                    - baz
+    '''
+
+    ret = {'name': name,
+           'changes': {},
+           'result': False,
+           'comment': ''}
+
+    if not __salt__['porto.exists'](name):
+        ret['result'] = True
+        ret['comment'] = 'Container \'{0}\' does not exist'.format(name)
+        return ret
+
+    pre_state = __salt__['porto.state'](name)
+
+    if __opts__['test']:
+        ret['result'] = None
+        ret['comment'] = 'Container \'{0}\' will be removed'.format(name)
+        return ret
+
+    try:
+        ret['changes']['removed'] = __salt__['porto.destroy'](name)
+    except Exception as exc:
+        ret['comment'] = 'Failed to remove container \'{0}\': {1}'.format(name, exc)
+        return ret
+
+    if __salt__['porto.exists'](name):
+        ret['comment'] = 'Failed to remove container \'{0}\''.format(name)
+    else:
+        ret['comment'] = 'Removed container \'{0}\''.format(name)
+        ret['result'] = True
     return ret
