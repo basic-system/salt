@@ -321,4 +321,37 @@ def run(name,
     return True
 
 
+def inspect_container(name):
+    '''
+    Retrieves container information.
 
+    name
+        Container name
+
+
+    **RETURN DATA**
+
+    A dictionary of container information
+
+
+    CLI Example:
+
+    .. code-block:: bash
+
+        salt myminion porto.inspect_container mycontainer
+    '''
+
+    if exists(name):
+        api = _get_api()
+        try:
+            container = api.Find(name)
+            res = container.GetProperties()
+            return res
+        except Exception as exc:
+            logging.debug("can't get container \'{0}\' information {1}".format(name, exc))
+            api.disconnect()
+            return {}
+        api.disconnect()
+        return {}
+    else:
+        return {}
