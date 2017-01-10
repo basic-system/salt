@@ -74,8 +74,17 @@ def running(name,
            'result': False,
            'comment': ''}
 
-    if 'cmd' in kwargs:
-        kwagrs['command'] = kwargs.pop('cmd')
+    if __salt__['porto.exists'](name):
+        new_container = False
+        try:
+            pre_config = __salt__['porto.inspect_container'](name)
+        except CommandExecutionError as exc:
+            ret['comment'] = ('Error occurred checking for existence of '
+                              'container \'{0}\': {1}'.format(name, exc))
+            return ret
+    else:
+        new_container = True
+        pre_config = {}
 
     if __opts__['test']:
         if not new_container:
@@ -91,14 +100,49 @@ def running(name,
             # ret['comment'] += 'created' if not pre_config else 'replaced'
         return ret
 
-    comments = []
-    create_kwargs = salt.utils.clean_kwargs(**copy.deepcopy(kwargs))
-    logging.debug("C name is: {}".format(name))
-    res = __salt__['porto.create'](name, **create_kwargs)
-    if res:
-        res = __salt__['porto.start'](name)
+    if 'cmd' in kwargs:
+        kwargs['command'] = kwargs.pop('cmd')
 
-    ret['result'] = res
+    create_kwargs = salt.utils.clean_kwargs(**copy.deepcopy(kwargs))
+
+    logging.debug("C name is: {}".format(name))
+
+    if not pre_config:
+        new_container = True
+
+    if new_container:
+        res = __salt__['porto.create'](name, **create_kwargs)
+        if res:
+            res = __salt__['porto.start'](name)
+            ret['result'] = res
+            return ret
+        else:
+            ret['comment'] = 'Can\'t create container \'{0}\': {1}'.format(name. res)
+            return ret
+    else:
+        changes_needed = False
+        for prop, value in create_kwargs:
+            if pre_config[prop] != value:
+                changes_needed = True
+
+        if changes_needed:
+            if __salt__['porto.state'] == 'runnning':
+                res = __salt__['porto.stop'](name)
+                if not res:
+                    ret['comment'] = 'Can\'t stop container \'{0}\' for change prop'.format(name)
+                    return ret
+
+            res = __salt__['porto.set_property'](name, create_kwargs)
+            if not res:
+                ret['comment'] = 'Can\'t set property \'{0}\''.format(name)
+                return ret
+
+            res = __salt__['porto.start'](name)
+            if not res:
+                ret['comment'] = 'Can\'t start \'{0}\''.format(name)
+                return ret
+
+            ret['result'] = True
 
     return ret
 
