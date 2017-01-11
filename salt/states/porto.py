@@ -153,6 +153,7 @@ def running(name,
             logging.debug('current state is {0}'.format(state))
             if state == 'running':
                 ret['result'] = True
+                ret['comment'] = 'service already running'
                 return ret
             else:
                 if state == 'dead': # Porto can't start dead container
