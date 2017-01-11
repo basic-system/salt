@@ -54,7 +54,7 @@ def running(name,
             **kwargs):
     '''
      Ensure that a container with a specific configuration is present and
-     runnning
+     running
 
     name
         Name of the container
@@ -63,7 +63,7 @@ def running(name,
 
     .. code-block:: yaml
         mycontainer:
-            porto.runnning:
+            porto.running:
                 - hostname: hostname
                 - command: "sleep 300"
                 ...
@@ -81,6 +81,7 @@ def running(name,
         except CommandExecutionError as exc:
             ret['comment'] = ('Error occurred checking for existence of '
                               'container \'{0}\': {1}'.format(name, exc))
+            logging.debug(ret['comment'])
             return ret
     else:
         new_container = True
@@ -93,6 +94,7 @@ def running(name,
                 'Container \'{0}\' is already configured as specified'
                 .format(name)
             )
+            logging.debug(ret['comment'])
         else:
             ret['result'] = None
             ret['comment'] = 'Container \'{0}\' will be '.format(name)
@@ -105,9 +107,10 @@ def running(name,
 
     create_kwargs = salt.utils.clean_kwargs(**copy.deepcopy(kwargs))
 
-    logging.debug("C name is: {}".format(name))
+    logging.debug("C name is: {}; new_container is {}, pre_config is {}".format(name, new_container, pre_config))
 
     if not pre_config:
+        logging.debug('pre_config is set')
         new_container = True
 
     if new_container:
@@ -121,12 +124,13 @@ def running(name,
             return ret
     else:
         changes_needed = False
-        for prop, value in create_kwargs:
+        for prop, value in create_kwargs.items():
             if pre_config[prop] != value:
+                logging.debug("prop {} not the same ({} {})".format(prop, pre_config[prop], value))
                 changes_needed = True
 
         if changes_needed:
-            if __salt__['porto.state'] == 'runnning':
+            if __salt__['porto.state'] == 'running':
                 res = __salt__['porto.stop'](name)
                 if not res:
                     ret['comment'] = 'Can\'t stop container \'{0}\' for change prop'.format(name)
@@ -143,6 +147,27 @@ def running(name,
                 return ret
 
             ret['result'] = True
+        else:
+            logging.debug('Changes not needed')
+            state = __salt__['porto.state'](name)
+            logging.debug('current state is {0}'.format(state))
+            if state == 'running':
+                ret['result'] = True
+                return ret
+            else:
+                if state == 'dead': # Porto can't start dead container
+                    logging.debug('Container is dead; Try to stop container')
+                    res = __salt__['porto.stop'](name)
+                    if not res:
+                        ret['comment'] = 'Can\'t stop container \'{0}\''.format(name)
+                        return ret
+
+                res = __salt__['porto.start'](name)
+                if not res:
+                    ret['comment'] = 'Can\'t start \'{0}\''.format(name)
+                    return ret
+                ret['result'] = True
+                return ret
 
     return ret
 
