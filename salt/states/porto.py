@@ -107,8 +107,6 @@ def running(name,
 
     create_kwargs = salt.utils.clean_kwargs(**copy.deepcopy(kwargs))
 
-    logging.debug("C name is: {}; new_container is {}, pre_config is {}".format(name, new_container, pre_config))
-
     if not pre_config:
         logging.debug('pre_config is set')
         new_container = True
