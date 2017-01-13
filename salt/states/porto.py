@@ -130,7 +130,8 @@ def running(name,
                 changes_needed = True
 
         if changes_needed:
-            if __salt__['porto.state'] == 'running':
+            state = __salt__['porto.state'](name)
+            if state == 'running' or state == 'dead':
                 res = __salt__['porto.stop'](name)
                 if not res:
                     ret['comment'] = 'Can\'t stop container \'{0}\' for change prop'.format(name)
@@ -147,6 +148,8 @@ def running(name,
                 return ret
 
             ret['result'] = True
+            ret['comment'] = 'Change container properties and restart container'
+            return ret
         else:
             logging.debug('Changes not needed')
             state = __salt__['porto.state'](name)
