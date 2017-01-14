@@ -355,3 +355,96 @@ def inspect_container(name):
         return {}
     else:
         return {}
+
+# Volume managment
+
+def volumes():
+    '''
+    List existing volumes
+
+    CLI Example:
+
+    .. code-block:: bash
+
+        salt myminion porto.volumes
+    '''
+    api = _get_api()
+    vnames = []
+    try:
+        vlist = api.ListVolumes()
+        for volume in vlist:
+            vnames.append(volume.path)
+    except Exception as exc:
+        logging.debug("Can't get volumes list")
+    api.disconnect()
+    return vnames
+
+def create_volume(path=None, layers = []):
+    '''
+    Create a new volume
+
+    return volume path
+
+    CLI Example:
+
+    .. code-block:: bash
+
+        salt myminion porto.create_volume /tmp/upper,/tmp/bottom
+    '''
+    api = _get_api()
+
+    vpath = None
+
+    try:
+        vpath = api.CreateVolume(path, layers)
+    except Exception as exc:
+        logging.debug("Can't create volume: {}".format(exc))
+
+    return vpath
+
+def remove_volume(name):
+    '''
+    Remove a volume
+
+    name
+        Name of volume
+
+    CLI Example:
+
+    .. code-block:: bash
+
+        salt myminion porto.remove_volume my_volume
+    '''
+
+    api = _get_api()
+
+    try:
+        res = api.DestroyVolume(name)
+        return res
+    except Exception as exc:
+        logging.debug("Can't remove volume {}: {}".format(name, exc))
+        return False
+
+def inspect_volume(name):
+    '''
+    Inspect Volume
+
+    name
+        Name of volume(volume path)
+
+    CLI Example:
+
+    .. code-block:: bash
+
+        salt myminion porto.inspect_volume my_volume
+    '''
+    api = _get_api()
+
+    try:
+        volume = api.FindVolume(name)
+        res = volume.GetProperties()
+        return res
+    except Exception as exc:
+        logging.debug("Can't get volume {} properties: {}".format(name, exc))
+        return False
+
